@@ -1,7 +1,7 @@
 <template>
-    <div class="container">
-        <codemirror :ref="uuid" v-model="data" :options="editor" class="input" :class="{open:!isPreview}"></codemirror>
-        <div v-if="isPreview == true" class="preview">
+    <div class="container" :ref="uuid+'-container'">
+        <codemirror :ref="uuid" v-model="data" :options="editor" class="input" :class="{open:!isPreview}" @scroll="onScroll"></codemirror>
+        <div v-if="isPreview == true" class="preview" :ref="uuid+'-markdown-body'">
             <div class="markdown-body" v-html="input"/>
         </div>
     </div>
@@ -12,30 +12,45 @@
   import { debounce } from 'lodash';
   import editor from '@/modules/editor.js';
   import {initMarkdown} from '@/modules/markdown.js'
-  import 'codemirror/lib/codemirror.css';
-  import 'codemirror/addon/lint/lint.css';
-  import 'prismjs/themes/prism.css';
+  import StringMixin from '@/mixins/StringMixin'
 
-  function S4() {
-    return (((1+Math.random())*0x10000)|0).toString(16).substring(1);
-  }
-  function guid() {
-    return (S4()+S4()+"-"+S4()+"-"+S4()+"-"+S4()+"-"+S4()+S4()+S4());
-  }
 
   export default {
     name: 'markdown',
     components: {
       codemirror
     },
+    mixins: [StringMixin],
+    props: {
+      value: {
+        type: String,
+        default: ''
+      },
+      preview: {
+        type: Boolean,
+        default: true
+      },
+      scroll: {
+        type: Boolean,
+        default: true
+      }
+    },
     data() {
       return {
         editor,
-        data: '',
+        data: this.value,
         input: '',
         markdown: initMarkdown(),
-        isPreview: true,
-        uuid: guid()
+        isPreview: this.preview,
+      }
+    },
+    methods: {
+      onScroll(e){
+        if(this.scroll && this.isPreview) {
+          let ratio = (e.doc.scrollTop) / (e.doc.height - this.$refs[this.uuid + '-container'].clientHeight);
+          let markdown = this.$refs[this.uuid + '-markdown-body'];
+          markdown.scrollTop = markdown.clientHeight * ratio;
+        }
       }
     },
     watch: {
@@ -48,38 +63,11 @@
         if (this.isPreview) {
           this.input = this.markdown.render(value);
         }
-      },
-      methods: {
       }
     },
   }
 </script>
 
-<style lang="scss" scoped>
+<style lang="scss">
     @import "../../style/markdown";
-    .container {
-        display: flex;
-        margin: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-    }
-    .input,
-    .preview {
-        flex-basis: 50%;
-        width: 50%;
-    }
-
-    .input {
-        transition: all 0.2s;
-        &.open {
-            flex-basis: 100%;
-            width: 100%;
-        }
-        /deep/ .vue-codemirror,
-        /deep/ .CodeMirror {
-            height: 100%;
-            width: 100%;
-        }
-    }
 </style>
